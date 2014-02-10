@@ -789,7 +789,7 @@ static int lpm_cpuidle_enter(struct cpuidle_device *dev,
 exit:
 	local_irq_enable();
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
-	return index;
+	return idx;
 }
 
 /**
