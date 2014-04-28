@@ -356,7 +356,7 @@ static int bcl_config_vph_adc(struct bcl_context *bcl,
 		return -EINVAL;
 	}
 	bcl->btm_vph_adc_param.timer_interval =
-			adc_timer_val_usec[ADC_MEAS1_INTERVAL_31P3MS];
+			adc_timer_val_usec[ADC_MEAS1_INTERVAL_1S];
 	bcl->btm_vph_adc_param.btm_ctx = bcl;
 	bcl->btm_vph_adc_param.threshold_notification = bcl_vph_notification;
 	bcl->btm_vph_adc_param.channel = bcl->btm_vph_chan;
