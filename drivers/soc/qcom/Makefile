@@ -32,6 +32,8 @@ ifdef CONFIG_MSM_SUBSYSTEM_RESTART
 endif
 obj-$(CONFIG_MSM_SYSMON_COMM) += sysmon.o
 
+obj-$(CONFIG_QCOM_EARLY_RANDOM)	+= early_random.o
+
 obj-$(CONFIG_STATE_NOTIFIER)		+= state_notifier.o
 obj-$(CONFIG_STATE_HELPER)		+= state_helper.o
 obj-$(CONFIG_MSM_LIMITER)		+= msm_limiter.o
