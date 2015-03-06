@@ -306,6 +306,14 @@ config PARTIALRESUME
 	  partial-resume handlers associated with them, and they all return
 	  true.
 
+config SUSPEND_TIME_TIMEKEEPING
+	bool "get suspend time from timekeeping"
+	depends on SUSPEND_TIME
+	default y
+	---help---
+	  Get the suspend time in suspend from timekeeping for the archs
+	  that dont support persistent clock.
+
 config PM_SYNC_BEFORE_SUSPEND
 	bool "Sync file systems before suspend"
 	depends on PM
