@@ -219,6 +219,7 @@ struct msm_hs_port {
 	struct msm_hs_rx rx;
 	atomic_t clk_count;
 	struct msm_hs_wakeup wakeup;
+	struct wakeup_source ws;
 
 	struct dentry *loopback_dir;
 	struct work_struct clock_off_w; /* work for actual clock off */
@@ -2231,6 +2232,7 @@ void msm_hs_request_clock_off(struct uart_port *uport)
 	if (msm_uport->obs)
 		atomic_set(&msm_uport->client_req_state, 1);
 	msm_hs_resource_unvote(msm_uport);
+	__pm_relax(&msm_uport->ws);
 }
 EXPORT_SYMBOL(msm_hs_request_clock_off);
 
@@ -2239,6 +2241,7 @@ void msm_hs_request_clock_on(struct uart_port *uport)
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	msm_hs_resource_vote(UARTDM_TO_MSM(uport));
 
+	__pm_stay_awake(&msm_uport->ws);
 	if (msm_uport->pm_state != MSM_HS_PM_ACTIVE) {
 		MSM_HS_WARN("%s(): %p runtime PM callback not invoked",
 			__func__, uport->dev);
@@ -2473,6 +2476,7 @@ static int msm_hs_startup(struct uart_port *uport)
 	struct msm_hs_rx *rx = &msm_uport->rx;
 	struct sps_pipe *sps_pipe_handle_tx = tx->cons.pipe_handle;
 	struct sps_pipe *sps_pipe_handle_rx = rx->prod.pipe_handle;
+	struct tty_struct *tty = msm_uport->uport.state->port.tty;
 
 	rfr_level = uport->fifosize;
 	if (rfr_level > 16)
@@ -2506,11 +2510,11 @@ static int msm_hs_startup(struct uart_port *uport)
 		}
 	}
 
-
+	wakeup_source_init(&msm_uport->ws, tty->name);
 	ret = msm_hs_config_uart_gpios(uport);
 	if (ret) {
 		MSM_HS_ERR("Uart GPIO request failed\n");
-		goto free_uart_irq;
+		goto deinit_ws;
 	}
 
 	msm_hs_write(uport, UART_DM_DMEN, 0);
@@ -2613,6 +2617,8 @@ sps_disconnect_tx:
 	sps_disconnect(sps_pipe_handle_tx);
 unconfig_uart_gpios:
 	msm_hs_unconfig_uart_gpios(uport);
+deinit_ws:
+	wakeup_source_trash(&msm_uport->ws);
 free_uart_irq:
 	free_irq(uport->irq, msm_uport);
 unvote_exit:
@@ -3448,6 +3454,7 @@ static void msm_hs_shutdown(struct uart_port *uport)
 	else
 		disable_irq(uport->irq);
 
+	wakeup_source_trash(&msm_uport->ws);
 	msm_uport->wakeup.enabled = false;
 	/* make sure tx lh finishes */
 	flush_kthread_worker(&msm_uport->tx.kworker);
