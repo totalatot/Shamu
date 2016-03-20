@@ -31,6 +31,10 @@
 #include <linux/semaphore.h>
 #include <linux/atomic.h>
 
+#ifdef CONFIG_STATE_NOTIFIER
+#include <linux/state_notifier.h>
+#endif
+
 enum {
 	STATE_UNKNOWN,
 	STATE_ACTIVE,
@@ -2470,6 +2474,9 @@ static void mxt_set_sensor_state(struct mxt_data *data, int state)
 		data->enable_reporting = false;
 		if (!data->in_bootloader)
 			mxt_sensor_state_config(data, SUSPEND_IDX);
+#ifdef CONFIG_STATE_NOTIFIER
+		state_suspend();
+#endif
 			break;
 
 	case STATE_ACTIVE:
@@ -2481,6 +2488,9 @@ static void mxt_set_sensor_state(struct mxt_data *data, int state)
 			mxt_restore_default_mode(data);
 			pr_debug("Non-persistent mode; restoring default\n");
 		}
+#ifdef CONFIG_STATE_NOTIFIER
+		state_resume();
+#endif
 			break;
 
 	case STATE_STANDBY:
