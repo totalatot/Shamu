@@ -279,6 +279,7 @@ static ssize_t mic_gain_store(struct kobject *kobj,
 
 }
 
+#ifndef CONFIG_ARCH_APQ8084
 static ssize_t speaker_gain_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -304,6 +305,7 @@ static ssize_t speaker_gain_store(struct kobject *kobj,
 
 	return count;
 }
+#endif
 
 static ssize_t headphone_gain_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
@@ -330,6 +332,7 @@ static ssize_t headphone_gain_store(struct kobject *kobj,
 	return count;
 }
 
+#ifndef CONFIG_ARCH_APQ8084
 static ssize_t headphone_pa_gain_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -365,6 +368,7 @@ static ssize_t headphone_pa_gain_store(struct kobject *kobj,
 
 	return count;
 }
+#endif
 
 static unsigned int selected_reg = 0xdeadbeef;
 
@@ -462,11 +466,13 @@ static struct kobj_attribute mic_gain_attribute =
 		mic_gain_show,
 		mic_gain_store);
 
+#ifndef CONFIG_ARCH_APQ8084
 static struct kobj_attribute speaker_gain_attribute =
 	__ATTR(gpl_speaker_gain,
 		0666,
 		speaker_gain_show,
 		speaker_gain_store);
+#endif
 
 static struct kobj_attribute headphone_gain_attribute =
 	__ATTR(gpl_headphone_gain,
@@ -474,11 +480,13 @@ static struct kobj_attribute headphone_gain_attribute =
 		headphone_gain_show,
 		headphone_gain_store);
 
+#ifndef CONFIG_ARCH_APQ8084
 static struct kobj_attribute headphone_pa_gain_attribute =
 	__ATTR(gpl_headphone_pa_gain,
 		0666,
 		headphone_pa_gain_show,
 		headphone_pa_gain_store);
+#endif
 
 static struct kobj_attribute sound_control_locked_attribute =
 	__ATTR(gpl_sound_control_locked,
@@ -500,9 +508,13 @@ static struct attribute *sound_control_attrs[] =
 	{
 		&cam_mic_gain_attribute.attr,
 		&mic_gain_attribute.attr,
+#ifndef CONFIG_ARCH_APQ8084
 		&speaker_gain_attribute.attr,
+#endif
 		&headphone_gain_attribute.attr,
+#ifndef CONFIG_ARCH_APQ8084
 		&headphone_pa_gain_attribute.attr,
+#endif
 		&sound_control_locked_attribute.attr,
 		&sound_reg_sel_attribute.attr,
 		&sound_reg_read_attribute.attr,
