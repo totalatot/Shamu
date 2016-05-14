@@ -1393,7 +1393,7 @@ static int mdss_fb_alloc_fb_ion_memory(struct msm_fb_data_type *mfd,
 			goto fb_mmap_failed;
 		}
 	} else {
-		pr_err("No IOMMU Domain");
+		pr_err("No IOMMU Domain\n");
 		rc = -EINVAL;
 		goto fb_mmap_failed;
 
@@ -2089,7 +2089,7 @@ static void __mdss_fb_copy_fence(struct msm_sync_pt_data *sync_pt_data,
 	 */
 	*fence_cnt = sync_pt_data->acq_fen_cnt;
 	sync_pt_data->acq_fen_cnt = 0;
-	if (fence_cnt)
+	if (*fence_cnt)
 		memcpy(fences, sync_pt_data->acq_fen,
 				*fence_cnt * sizeof(struct sync_fence *));
 	mutex_unlock(&sync_pt_data->sync_mutex);
@@ -2252,8 +2252,13 @@ static int __mdss_fb_sync_buf_done_callback(struct notifier_block *p,
 				msecs_to_jiffies(mfd->idle_time));
 		break;
 	case MDP_NOTIFY_FRAME_READY:
-		if (sync_pt_data->async_wait_fences)
-			mdss_fb_wait_for_fence(sync_pt_data);
+		if (sync_pt_data->async_wait_fences &&
+			sync_pt_data->temp_fen_cnt) {
+			fence_cnt = sync_pt_data->temp_fen_cnt;
+			sync_pt_data->temp_fen_cnt = 0;
+			__mdss_fb_wait_for_fence_sub(sync_pt_data,
+				sync_pt_data->temp_fen, fence_cnt);
+		}
 		break;
 	case MDP_NOTIFY_FRAME_FLUSHED:
 		pr_debug("%s: frame flushed\n", sync_pt_data->fence_name);
@@ -2267,21 +2272,11 @@ static int __mdss_fb_sync_buf_done_callback(struct notifier_block *p,
 		pr_debug("%s: frame done\n", sync_pt_data->fence_name);
 		mdss_fb_signal_timeline(sync_pt_data);
 		break;
-	case MDP_NOTIFY_FRAME_PRE_START:
+	case MDP_NOTIFY_FRAME_CONFIG_DONE:
 		if (sync_pt_data->async_wait_fences)
 			__mdss_fb_copy_fence(sync_pt_data,
 					sync_pt_data->temp_fen,
 					&sync_pt_data->temp_fen_cnt);
-		mdss_fb_release_kickoff(mfd);
-		break;
-	case MDP_NOTIFY_FRAME_START:
-		if (sync_pt_data->async_wait_fences &&
-			sync_pt_data->temp_fen_cnt) {
-			fence_cnt = sync_pt_data->temp_fen_cnt;
-			sync_pt_data->temp_fen_cnt = 0;
-			__mdss_fb_wait_for_fence_sub(sync_pt_data,
-				sync_pt_data->temp_fen, fence_cnt);
-		}
 		break;
 	case MDP_NOTIFY_FRAME_START_DONE:
 		mdss_fb_release_kickoff(mfd);

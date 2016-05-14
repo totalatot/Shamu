@@ -56,7 +56,7 @@
  * @MDP_NOTIFY_FRAME_BEGIN:	Frame update has started, the frame is about to
  *				be programmed into hardware.
  * @MDP_NOTIFY_FRAME_READY:	Frame ready to be kicked off, this can be used
- *				as the last point in time to synchronized with
+ *				as the last point in time to synchronize with
  *				source buffers before kickoff.
  * @MDP_NOTIFY_FRAME_FLUSHED:	Configuration of frame has been flushed and
  *				DMA transfer has started.
@@ -67,6 +67,8 @@
  *				  as soon as the DMA of the frame is done.
  * @MDP_NOTIFY_FRAME_TIMEOUT:	Frame DMA transfer has failed to complete within
  *				a fair amount of time.
+ * @MDP_NOTIFY_FRAME_CONFIG_DONE:	Frame configuration is done.
+ * @MDP_NOTIFY_FRAME_START_DONE:	Frame DMA transfer has started.
  */
 enum mdp_notify_event {
 	MDP_NOTIFY_FRAME_BEGIN = 1,
@@ -74,8 +76,7 @@ enum mdp_notify_event {
 	MDP_NOTIFY_FRAME_FLUSHED,
 	MDP_NOTIFY_FRAME_DONE,
 	MDP_NOTIFY_FRAME_TIMEOUT,
-	MDP_NOTIFY_FRAME_PRE_START,
-	MDP_NOTIFY_FRAME_START,
+	MDP_NOTIFY_FRAME_CONFIG_DONE,
 	MDP_NOTIFY_FRAME_START_DONE,
 };
 

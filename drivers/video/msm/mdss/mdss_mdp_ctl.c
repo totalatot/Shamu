@@ -3130,12 +3130,12 @@ int mdss_mdp_display_commit(struct mdss_mdp_ctl *ctl, void *arg,
 	}
 
 	ATRACE_BEGIN("frame_ready");
+	mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_CONFIG_DONE);
 	if (commit_cb)
 		commit_cb->commit_cb_fnc(
 			MDP_COMMIT_STAGE_SETUP_DONE,
 			commit_cb->data);
-	else
-		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_READY);
+	mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_READY);
 	ATRACE_END("frame_ready");
 
 	if (!mdata->serialize_wait4pp && ctl->wait_pingpong) {

@@ -1199,7 +1199,7 @@ int mdss_mdp_overlay_start(struct msm_fb_data_type *mfd)
 			rc = mdss_iommu_ctrl(1);
 			if (IS_ERR_VALUE(rc)) {
 				pr_err("iommu attach failed rc=%d\n", rc);
-				return rc;
+				goto end;
 			}
 			mdss_hw_init(mdss_res);
 			mdss_iommu_ctrl(0);
@@ -1366,10 +1366,9 @@ static int mdss_mdp_commit_cb(enum mdp_commit_stage_type commit_stage,
 	switch (commit_stage) {
 	case MDP_COMMIT_STAGE_SETUP_DONE:
 		ctl = mfd_to_ctl(mfd);
-		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_PRE_START);
+		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_START_DONE);
 		mdp5_data->kickoff_released = true;
 		mutex_unlock(&mdp5_data->ov_lock);
-		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_START);
 		break;
 	case MDP_COMMIT_STAGE_READY_FOR_KICKOFF:
 		mutex_lock(&mdp5_data->ov_lock);
