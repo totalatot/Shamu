@@ -1124,6 +1124,10 @@ static void __ref do_core_control(long temp)
 			if (ret)
 				pr_err("Error %d online core %d\n",
 						ret, i);
+			else {
+				struct device *cpu_device = get_cpu_device(i);
+				kobject_uevent(&cpu_device->kobj, KOBJ_ONLINE);
+			}
 			break;
 		}
 	}
@@ -1177,8 +1181,11 @@ static int __ref update_offline_cores(int val)
 			if (ret)
 				pr_err("Unable to offline CPU%d. err:%d\n",
 					cpu, ret);
-			else
+			else {
+				struct device *cpu_device = get_cpu_device(cpu);
+				kobject_uevent(&cpu_device->kobj, KOBJ_OFFLINE);
 				pr_debug("Offlined CPU%d\n", cpu);
+		        }
 		} else if (online_core && (previous_cpus_offlined & BIT(cpu))) {
 #ifdef CONFIG_STATE_HELPER
 			thermal_notify(cpu, 1);
@@ -1193,6 +1200,8 @@ static int __ref update_offline_cores(int val)
 				pr_err("Unable to online CPU%d. err:%d\n",
 					cpu, ret);
 			} else {
+				struct device *cpu_device = get_cpu_device(cpu);
+				kobject_uevent(&cpu_device->kobj, KOBJ_ONLINE);
 				pr_debug("Onlined CPU%d\n", cpu);
 			}
 		}
@@ -3576,4 +3585,3 @@ int __init msm_thermal_late_init(void)
 	return 0;
 }
 late_initcall(msm_thermal_late_init);
-
