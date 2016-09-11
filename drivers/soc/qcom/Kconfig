@@ -148,6 +148,12 @@ config FORCE_FAST_CHARGE
 	  This allows users to override default charge rate for both USB and AC
 	  charger input current
 
+config BLU_PLUG
+ 	bool "Dynamic hotplug driver"
+ 	depends on HOTPLUG_CPU
+ 	help
+	  The Dynamic hotplug driver automatically online/offline CPUs proportional to system load.
+
 source "drivers/soc/qcom/memshare/Kconfig"
 
 endif # ARCH_MSM

@@ -38,3 +38,5 @@ obj-$(CONFIG_STATE_NOTIFIER)		+= state_notifier.o
 obj-$(CONFIG_STATE_HELPER)		+= state_helper.o
 obj-$(CONFIG_MSM_LIMITER)		+= msm_limiter.o
 obj-$(CONFIG_FORCE_FAST_CHARGE)	+= fastchg.o
+
+obj-$(CONFIG_BLU_PLUG) += blu_plug.o
