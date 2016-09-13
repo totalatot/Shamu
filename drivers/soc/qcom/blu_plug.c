@@ -74,7 +74,7 @@ static void __ref up_one(void)
 	unsigned int cpu;
 
 	/* All CPUs are online, return */
-	if (num_online_cpus() == max_online)
+	if (num_online_cpus() >= max_online)
 		goto out;
 
 	cpu = cpumask_next_zero(0, cpu_online_mask);
@@ -96,10 +96,8 @@ static inline void down_one(void)
 	bool all_equal = false;
 
 	/* Min online CPUs, return */
-	if (num_online_cpus() == min_online)
+	if (num_online_cpus() <= min_online)
 		goto out;
-
-	get_online_cpus();
 
 	for_each_online_cpu(cpu) {
 		unsigned int thres = plug_threshold[cpu];
@@ -124,8 +122,6 @@ static inline void down_one(void)
 		}
 	}
 
-	put_online_cpus();
-
 	if (all_equal)
 		cpu_down(l_cpu);
 	else
@@ -145,29 +141,31 @@ static void load_timer(struct work_struct *work)
 {
 	unsigned int cpu;
 	unsigned int avg_load = 0;
-	
+	unsigned int online_cpus = num_online_cpus();
+
 	if (down_timer < down_timer_cnt)
 		down_timer++;
 
 	if (up_timer < up_timer_cnt)
 		up_timer++;
-	
+
 	for_each_online_cpu(cpu)
 		avg_load += cpufreq_quick_get_util(cpu);
 		
-	avg_load /= num_online_cpus();
-	
+	avg_load /= online_cpus;
+
 #if DEBUG
 	pr_debug("%s: avg_load: %u, num_online_cpus: %u\n", __func__, avg_load, num_online_cpus());
 	pr_debug("%s: up_timer: %u, down_timer: %u\n", __func__, up_timer, down_timer);
 #endif
 
-	if (avg_load >= up_threshold && up_timer >= up_timer_cnt)
+	if ((avg_load >= up_threshold && up_timer >= up_timer_cnt) ||
+		online_cpus < min_online)
 		up_one();
-	else if (down_timer >= down_timer_cnt)
+	else if (down_timer >= down_timer_cnt || online_cpus > max_online)
 		down_one();
 
-	queue_delayed_work_on(0, dyn_workq, &dyn_work, delay);
+	queue_delayed_work_on(0, dyn_workq, &dyn_work, msecs_to_jiffies(delay));
 }
 
 #ifdef CONFIG_STATE_NOTIFIER
@@ -187,7 +185,7 @@ static void blu_plug_suspend(void)
 static void blu_plug_resume(void)
 {
 	up_all();
-	queue_delayed_work_on(0, dyn_workq, &dyn_work, delay);
+	queue_delayed_work_on(0, dyn_workq, &dyn_work, msecs_to_jiffies(delay));
 }
 
 static int state_notifier_callback(struct notifier_block *this,
@@ -391,7 +389,7 @@ static int dyn_hp_init(void)
 		return -ENOMEM;
 
 	INIT_DELAYED_WORK(&dyn_work, load_timer);
-	queue_delayed_work_on(0, dyn_workq, &dyn_work, INIT_DELAY);
+	queue_delayed_work_on(0, dyn_workq, &dyn_work, msecs_to_jiffies(INIT_DELAY));
 
 	pr_info("%s: activated\n", __func__);
 
