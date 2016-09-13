@@ -57,7 +57,7 @@ static struct workqueue_struct *dyn_workq;
 static struct notifier_block notify;
 
 /* Bring online each possible CPU up to max_online cores */
-static __ref void up_all(void)
+static void __ref up_all(void)
 {
 	unsigned int cpu;
 
@@ -79,7 +79,7 @@ static void down_all(void)
 }
 
 /* Iterate through possible CPUs and bring online the first offline found */
-static __ref void up_one(void)
+static void __ref up_one(void)
 {
 	unsigned int cpu;
 
@@ -260,11 +260,11 @@ static int set_min_online(const char *val, const struct kernel_param *kp)
 		return -EINVAL;
 
 	ret = param_set_uint(val, kp);
-	
+
 	if (ret == 0) {
 			up_all();
 	}
-	
+
 	return ret;
 }
 
@@ -288,12 +288,12 @@ static int set_max_online(const char *val, const struct kernel_param *kp)
 		return -EINVAL;
 
 	ret = param_set_uint(val, kp);
-	
+
 	if (ret == 0) {
 		down_all();
 		up_all();
 	}
-	
+
 	return ret;
 }
 
@@ -324,7 +324,7 @@ static int set_max_cores_screenoff(const char *val, const struct kernel_param *k
 		down_all();
 		up_all();
 	}
-	
+
 	return ret;
 }
 
@@ -351,7 +351,7 @@ static int set_down_timer_cnt(const char *val, const struct kernel_param *kp)
 		down_timer_cnt = up_timer_cnt;
 
 	ret = param_set_uint(val, kp);
-	
+
 	return ret;
 }
 
@@ -403,7 +403,7 @@ static int dyn_hp_init(void)
 		pr_err("%s: Failed to register State notifier callback\n",
 			__func__);
 #endif
-	
+
 	dyn_workq = alloc_workqueue("dyn_hotplug_workqueue", WQ_HIGHPRI | WQ_FREEZABLE, 0);
 	if (!dyn_workq)
 		return -ENOMEM;
@@ -416,8 +416,10 @@ static int dyn_hp_init(void)
 	return 0;
 }
 
-static void dyn_hp_exit(void)
+static void __ref dyn_hp_exit(void)
 {
+	int cpu;
+
 	cancel_delayed_work_sync(&dyn_work);
 
 #ifdef CONFIG_STATE_NOTIFIER
@@ -425,6 +427,11 @@ static void dyn_hp_exit(void)
 #endif
 
 	destroy_workqueue(dyn_workq);
+
+	/* Wake up all the sibling cores */
+	for_each_possible_cpu(cpu)
+		if (!cpu_online(cpu))
+			cpu_up(cpu);
 	
 	pr_info("%s: deactivated\n", __func__);
 }
