@@ -27,7 +27,6 @@
 #ifdef CONFIG_STATE_NOTIFIER
 #include <linux/state_notifier.h>
 #endif
-#include <soc/qcom/cpufreq.h>
 
 #define INIT_DELAY		(60 * HZ) /* Initial delay to 60 sec, 4 cores while boot */
 #define DELAY			(HZ / 2)
@@ -37,8 +36,6 @@
 #define DEF_DOWN_TIMER_CNT	(6)	/* 3 secs */
 #define DEF_UP_TIMER_CNT	(2)	/* 1 sec */
 #define MAX_CORES_SCREENOFF     (1)
-#define MAX_FREQ_SCREENOFF      (0)
-#define MAX_FREQ_PLUG           (3091200)
 #define DEF_PLUG_THRESHOLD      (70)
 #define BLU_PLUG_ENABLED	(0)
 
@@ -53,18 +50,14 @@ static unsigned int up_timer;
 static unsigned int down_timer_cnt = DEF_DOWN_TIMER_CNT;
 static unsigned int up_timer_cnt = DEF_UP_TIMER_CNT;
 static unsigned int max_cores_screenoff = MAX_CORES_SCREENOFF;
-static unsigned int max_freq_screenoff = MAX_FREQ_SCREENOFF;
-static unsigned int max_freq_plug = MAX_FREQ_PLUG;
 static unsigned int plug_threshold[MAX_ONLINE] = {[0 ... MAX_ONLINE-1] = DEF_PLUG_THRESHOLD};
 
 static struct delayed_work dyn_work;
 static struct workqueue_struct *dyn_workq;
-static struct work_struct suspend, resume;
 static struct notifier_block notify;
 
-
 /* Bring online each possible CPU up to max_online cores */
-static inline void up_all(void)
+static __ref void up_all(void)
 {
 	unsigned int cpu;
 
@@ -76,7 +69,7 @@ static inline void up_all(void)
 }
 
 /* Put offline each possible CPU down to min_online threshold */
-static inline void down_all(void)
+static void down_all(void)
 {
 	unsigned int cpu;
 
@@ -86,7 +79,7 @@ static inline void down_all(void)
 }
 
 /* Iterate through possible CPUs and bring online the first offline found */
-static inline void up_one(void)
+static __ref void up_one(void)
 {
 	unsigned int cpu;
 
@@ -158,7 +151,7 @@ out:
  * If the average load is below up_threshold offline one more CPU if the
  * down_timer has expired.
  */
-static __ref void load_timer(struct work_struct *work)
+static void load_timer(struct work_struct *work)
 {
 	unsigned int cpu;
 	unsigned int avg_load = 0;
@@ -187,61 +180,26 @@ static __ref void load_timer(struct work_struct *work)
 	queue_delayed_work_on(0, dyn_workq, &dyn_work, delay);
 }
 
-/* 
- * Manages driver behavior on screenoff mode
- * It sets max online CPUs to max_cores_screenoff and freq to max_freq_screenoff
- * Restores previous values on resume work
- *
- */
-static __ref void max_screenoff(bool screenoff)
-{
-	uint32_t cpu, freq;
-	
-	if (screenoff) {
-		max_freq_plug = cpufreq_quick_get_max(0);
-		freq = min(max_freq_screenoff, max_freq_plug);
-
-		cancel_delayed_work_sync(&dyn_work);
-		
-		for_each_possible_cpu(cpu) {
-			msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, freq);
-			
-			if (cpu && num_online_cpus() > max_cores_screenoff)
-				cpu_down(cpu);
-		}
-		cpufreq_update_policy(cpu);
-	}
-	else {
-		freq = max_freq_plug;
-		
-		up_all();
-		
-		for_each_possible_cpu(cpu) {
-			msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, freq);
-		}
-		cpufreq_update_policy(cpu);
-		
-		queue_delayed_work_on(0, dyn_workq, &dyn_work, delay);
-	}
-	
-#if DEBUG
-	pr_debug("%s: num_online_cpus: %u, freq_online_cpus: %u\n", __func__, num_online_cpus(), freq);
-#endif
-}
-
-/* On suspend put offline all cores except cpu0*/
-static void dyn_lcd_suspend(struct work_struct *work)
-{	
-	max_screenoff(true);
-}
-
-/* On resume bring online CPUs until max_online to prevent lags */
-static void dyn_lcd_resume(struct work_struct *work)
-{
-	max_screenoff(false);
-}
-
 #ifdef CONFIG_STATE_NOTIFIER
+static void blu_plug_suspend(void)
+{
+	int cpu;
+
+	cancel_delayed_work_sync(&dyn_work);
+
+	for_each_possible_cpu(cpu) {
+		if (cpu != 0 && cpu_online(cpu)
+			&& num_online_cpus() > max_cores_screenoff)
+			cpu_down(cpu);
+	}
+}
+
+static void blu_plug_resume(void)
+{
+	up_all();
+	queue_delayed_work_on(0, dyn_workq, &dyn_work, delay);
+}
+
 static int state_notifier_callback(struct notifier_block *this,
 				unsigned long event, void *data)
 {
@@ -250,10 +208,10 @@ static int state_notifier_callback(struct notifier_block *this,
 
 	switch (event) {
 		case STATE_NOTIFIER_ACTIVE:
-			queue_work_on(0, dyn_workq, &resume);
+			blu_plug_resume();
 			break;
 		case STATE_NOTIFIER_SUSPEND:
-			queue_work_on(0, dyn_workq, &suspend);
+			blu_plug_suspend();
 			break;
 		default:
 			break;
@@ -290,7 +248,7 @@ static struct kernel_param_ops up_threshold_ops = {
 module_param_cb(up_threshold, &up_threshold_ops, &up_threshold, 0644);
 
 /* min_online */
-static __ref int set_min_online(const char *val, const struct kernel_param *kp)
+static int set_min_online(const char *val, const struct kernel_param *kp)
 {
 	int ret = 0;
 	unsigned int i;
@@ -318,7 +276,7 @@ static struct kernel_param_ops min_online_ops = {
 module_param_cb(min_online, &min_online_ops, &min_online, 0644);
 
 /* max_online */
-static __ref int set_max_online(const char *val, const struct kernel_param *kp)
+static int set_max_online(const char *val, const struct kernel_param *kp)
 {
 	int ret = 0;
 	unsigned int i;
@@ -347,7 +305,7 @@ static struct kernel_param_ops max_online_ops = {
 module_param_cb(max_online, &max_online_ops, &max_online, 0644);
 
 /* max_cores_screenoff */
-static __ref int set_max_cores_screenoff(const char *val, const struct kernel_param *kp)
+static int set_max_cores_screenoff(const char *val, const struct kernel_param *kp)
 {
 	int ret = 0;
 	unsigned int i;
@@ -376,30 +334,6 @@ static struct kernel_param_ops max_cores_screenoff_ops = {
 };
 
 module_param_cb(max_cores_screenoff, &max_cores_screenoff_ops, &max_cores_screenoff, 0644);
-
-/* max_freq_screenoff */
-static int set_max_freq_screenoff(const char *val, const struct kernel_param *kp)
-{
-	int ret = MAX_FREQ_SCREENOFF;
-	unsigned int i;
-
-	ret = kstrtouint(val, 10, &i);
-	if (ret)
-		return -EINVAL;
-	if (i < 35800 || i > 3091200)
-		return -EINVAL;
-
-	ret = param_set_uint(val, kp);
-	
-	return ret;
-}
-
-static struct kernel_param_ops max_freq_screenoff_ops = {
-	.set = set_max_freq_screenoff,
-	.get = param_get_uint,
-};
-
-module_param_cb(max_freq_screenoff, &max_freq_screenoff_ops, &max_freq_screenoff, 0644);
 
 /* down_timer_cnt */
 static int set_down_timer_cnt(const char *val, const struct kernel_param *kp)
@@ -474,8 +408,6 @@ static int dyn_hp_init(void)
 	if (!dyn_workq)
 		return -ENOMEM;
 
-	INIT_WORK(&resume, dyn_lcd_resume);
-	INIT_WORK(&suspend, dyn_lcd_suspend);
 	INIT_DELAYED_WORK(&dyn_work, load_timer);
 	queue_delayed_work_on(0, dyn_workq, &dyn_work, INIT_DELAY);
 
