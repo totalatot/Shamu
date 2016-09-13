@@ -34,6 +34,9 @@
 #include <linux/msm_thermal.h>
 #include <soc/qcom/limiter.h>
 #endif
+#ifdef CONFIG_STATE_HELPER
+#include <linux/state_helper.h>
+#endif
 
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
@@ -352,8 +355,12 @@ EXPORT_SYMBOL_GPL(cpufreq_notify_transition);
 void cpufreq_notify_utilization(struct cpufreq_policy *policy,
 		unsigned int util)
 {
-	if (policy)
+	if (policy) {
 		policy->util = util;
+#ifdef CONFIG_STATE_HELPER
+		load_notify(policy->cpu, util);
+#endif
+	}
 }
 
 /*********************************************************************
