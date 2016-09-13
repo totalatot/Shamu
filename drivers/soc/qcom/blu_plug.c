@@ -68,16 +68,6 @@ static void __ref up_all(void)
 	down_timer = 0;
 }
 
-/* Put offline each possible CPU down to min_online threshold */
-static void down_all(void)
-{
-	unsigned int cpu;
-
-	for_each_online_cpu(cpu)
-		if (cpu && num_online_cpus() > min_online)
-			cpu_down(cpu);
-}
-
 /* Iterate through possible CPUs and bring online the first offline found */
 static void __ref up_one(void)
 {
@@ -232,10 +222,11 @@ static int set_up_threshold(const char *val, const struct kernel_param *kp)
 	ret = kstrtouint(val, 10, &i);
 	if (ret)
 		return -EINVAL;
+
 	if (i < 1 || i > 100)
 		return -EINVAL;
 
-	ret = param_set_uint(val, kp);
+	up_threshold = i;
 
 	return ret;
 }
@@ -256,14 +247,11 @@ static int set_min_online(const char *val, const struct kernel_param *kp)
 	ret = kstrtouint(val, 10, &i);
 	if (ret)
 		return -EINVAL;
+
 	if (i < 1 || i > max_online || i > num_possible_cpus())
 		return -EINVAL;
 
-	ret = param_set_uint(val, kp);
-
-	if (ret == 0) {
-			up_all();
-	}
+	min_online = i;
 
 	return ret;
 }
@@ -284,15 +272,11 @@ static int set_max_online(const char *val, const struct kernel_param *kp)
 	ret = kstrtouint(val, 10, &i);
 	if (ret)
 		return -EINVAL;
+
 	if (i < 1 || i < min_online || i > num_possible_cpus())
 		return -EINVAL;
 
-	ret = param_set_uint(val, kp);
-
-	if (ret == 0) {
-		down_all();
-		up_all();
-	}
+	max_online = i;
 
 	return ret;
 }
@@ -313,17 +297,14 @@ static int set_max_cores_screenoff(const char *val, const struct kernel_param *k
 	ret = kstrtouint(val, 10, &i);
 	if (ret)
 		return -EINVAL;
+
 	if (i < 1 || i > max_online || i > num_possible_cpus())
 		return -EINVAL;
-	if (i > max_online)
-		max_cores_screenoff = max_online;
 
-	ret = param_set_uint(val, kp);
-	
-	if (ret == 0) {
-		down_all();
-		up_all();
-	}
+	if (i > max_online)
+		i = max_online;
+
+	max_cores_screenoff = i;
 
 	return ret;
 }
@@ -344,13 +325,14 @@ static int set_down_timer_cnt(const char *val, const struct kernel_param *kp)
 	ret = kstrtouint(val, 10, &i);
 	if (ret)
 		return -EINVAL;
+
 	if (i < 1 || i > 50)
 		return -EINVAL;
 		
 	if (i < up_timer_cnt)
-		down_timer_cnt = up_timer_cnt;
+		i = up_timer_cnt;
 
-	ret = param_set_uint(val, kp);
+	down_timer_cnt = i;
 
 	return ret;
 }
@@ -371,10 +353,11 @@ static int set_up_timer_cnt(const char *val, const struct kernel_param *kp)
 	ret = kstrtouint(val, 10, &i);
 	if (ret)
 		return -EINVAL;
+
 	if (i < 1 || i > 50)
 		return -EINVAL;
 
-	ret = param_set_uint(val, kp);
+	up_timer_cnt = i;
 
 	return ret;
 }
@@ -393,9 +376,8 @@ module_param_array(plug_threshold, uint, NULL, 0644);
 
 static int dyn_hp_init(void)
 {
-	if (!blu_plug_enabled) {
+	if (!blu_plug_enabled)
 		return 0;
-	}
 
 #ifdef CONFIG_STATE_NOTIFIER
 	notify.notifier_call = state_notifier_callback;
@@ -436,30 +418,30 @@ static void __ref dyn_hp_exit(void)
 	pr_info("%s: deactivated\n", __func__);
 }
 
-
 /* enabled */
 static int set_enabled(const char *val, const struct kernel_param *kp)
 {
 	int ret = 0;
 	unsigned int i;
-	int blu = 0;
 
 	ret = kstrtouint(val, 10, &i);
 	if (ret)
 		return -EINVAL;
+
 	if (i < 0 || i > 1)
-		return 0;
+		return -EINVAL;
 		
 	if (i == blu_plug_enabled)
-		return i;
+		return ret;
 
-	ret = param_set_uint(val, kp);
 	blu_plug_enabled = i;
-	if ((blu_plug_enabled == 1))
-		blu = dyn_hp_init();
-	if ((blu_plug_enabled == 0))
+
+	if (blu_plug_enabled)
+		ret = dyn_hp_init();
+	else
 		dyn_hp_exit();
-	return i;
+
+	return ret;
 }
 
 static struct kernel_param_ops enabled_ops = {
