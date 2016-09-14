@@ -279,6 +279,7 @@ void load_notify(unsigned int cpu, unsigned int k)
 
 	if (state_suspended || !helper.enabled || !helper.dynamic) {
 		info.dynamic_cpus = NR_CPUS;
+		last_load_time = ktime_to_us(ktime_get());
 		return;
 	}
 
