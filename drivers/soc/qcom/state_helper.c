@@ -25,7 +25,7 @@
 #define DELAY_MSEC			100
 #define DYNAMIC_ENABLED			0
 #define MIN_ALLOWED_INTERVAL		20
-#define DYN_INTERVAL_MS			150
+#define DYN_INTERVAL_MS			200
 #define DYN_UP_THRES			75
 #define DYN_DOWN_THRES			25
 #define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
@@ -268,7 +268,7 @@ static void load_cpus(void)
 	}
 
 	if (online_cpus != info.dynamic_cpus)
-		reschedule_nodelay();
+		reschedule_helper();
 }
 
 void load_notify(unsigned int cpu, unsigned int k)
