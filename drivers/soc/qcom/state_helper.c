@@ -254,8 +254,8 @@ static void load_cpus(void)
 	if (avg_load >= helper.dyn_up_threshold) {
 		req_cpus = info.dynamic_cpus + 1;
 
-		if (req_cpus > NR_CPUS)
-			req_cpus = NR_CPUS;
+		if (req_cpus > helper.max_cpus_online)
+			req_cpus = helper.max_cpus_online;
 
 		info.dynamic_cpus = req_cpus;
 	} else if (avg_load <= helper.dyn_down_threshold) {
