@@ -122,12 +122,16 @@ int adjust_minadj(short *min_score_adj)
 	return ret;
 }
 
+unsigned long pressure = 0;
+module_param_named(pressure, pressure, ulong, S_IRUGO);
+
 static int lmk_vmpressure_notifier(struct notifier_block *nb,
 			unsigned long action, void *data)
 {
 	int other_free, other_file;
-	unsigned long pressure = action;
 	int array_size = ARRAY_SIZE(lowmem_adj);
+
+	pressure = action;
 
 	if (!enable_adaptive_lmk)
 		return 0;
