@@ -183,6 +183,7 @@ static uint32_t bcl_frequency_mask;
 static struct power_supply bcl_psy;
 static const char bcl_psy_name[] = "bcl";
 static bool bcl_hit_shutdown_voltage;
+static bool bcl_allow_shutdown;
 static bool in_progress;
 
 static int bcl_battery_get_property(struct power_supply *psy,
@@ -200,7 +201,7 @@ static int bcl_battery_set_property(struct power_supply *psy,
 static void power_supply_callback(struct power_supply *psy)
 {
 	int vbatt = 0;
-	if (bcl_hit_shutdown_voltage)
+	if (bcl_hit_shutdown_voltage && bcl_allow_shutdown)
 		return;
 	if (0 != bcl_get_battery_voltage(&vbatt))
 		return;
